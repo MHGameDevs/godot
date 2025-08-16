@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+from misc.utility.scons_hints import *
+
+Import("env")
+Import("env_modules")
+
+env_godot_toolkit = env_modules.Clone()
+
+# Godot source files
+env_godot_toolkit.add_source_files(env.modules_sources, "*.cpp")
+env_godot_toolkit.add_source_files(env.modules_sources, "2d/*.cpp")
+env_godot_toolkit.add_source_files(env.modules_sources, "2d/navigation/*.cpp")
+env_godot_toolkit.add_source_files(env.modules_sources, "io/*.cpp")
