@@ -114,8 +114,6 @@ public:
 	bool is_navigation_finished();
 	Vector2 get_final_position();
 
-
-
     void set_debug_enabled(bool p_enabled);
 	bool get_debug_enabled() const;
 
