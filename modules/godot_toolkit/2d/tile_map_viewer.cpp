@@ -37,63 +37,16 @@
 
 Ref<Shader> TileMapViewer::s_mask_shader = nullptr;
 
-void TileMapViewer::load(const String &path) {
-	// If the requested path is the same as the currently loaded map, do nothing
-	if (map_file_path == path) {
-		return;
-	}
+#ifdef DEBUG_ENABLED
 
-	// Remove and free all mask nodes
-	for (MaskData mask : masks) {
-		if (mask.mask_node) {
-			mask.mask_node->get_parent()->remove_child(mask.mask_node);
-			mask.mask_node->queue_free();
-		}
-	}
+class TileMapViewerDebugNode2D : public Node2D {
+	GDCLASS(TileMapViewerDebugNode2D, Node2D);
 
-	// Clear tile and mask data arrays
-	tiles.clear();
-	masks.clear();
+protected:
+	void _notification(int p_what);
+};
 
-	// Release the AStarGrid2D reference so the grid data can be freed
-	astar_grid.unref();
-
-	// If the path is empty, clear all map data and nodes
-	if (path.is_empty()) {
-		// Release the map stream
-		map_stream.unref();
-		map_file_path = "";
-		// Request a redraw to update the empty map
-		queue_redraw();
-		return;
-	}
-
-	// Load the new map from file
-	map_stream = MapStream::load_from_file(path);
-	map_file_path = path;
-
-	// Initialize tile data (positions and sizes)
-	_init_tiles();
-
-	// Initialize mask data and mask fragments
-	_init_mask();
-
-	// Initialize the AStarGrid2D for pathfinding based on the map's grid data.
-	_init_astar_grid();
-
-#ifdef TOOLS_ENABLED
-	// If running in the editor, load all tiles immediately for preview
-	if (Engine::get_singleton()->is_editor_hint()) {
-		_load_all_tiles_and_masks_editor();
-	}
 #endif
-
-	// If any tiles were loaded, request a redraw
-	if (needs_redraw) {
-		queue_redraw();
-	}
-}
-
 
 void TileMapViewer::_init_static_shader() {
 	if (s_mask_shader.is_valid()) {
@@ -133,12 +86,147 @@ void TileMapViewer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_buffer_tiles", "buffer"), &TileMapViewer::set_buffer_tiles);
 	ClassDB::bind_method(D_METHOD("get_buffer_tiles"), &TileMapViewer::get_buffer_tiles);
 
+	ClassDB::bind_method(D_METHOD("set_debug_enabled", "enabled"), &TileMapViewer::set_debug_enabled);
+	ClassDB::bind_method(D_METHOD("get_debug_enabled"), &TileMapViewer::get_debug_enabled);
+	ClassDB::bind_method(D_METHOD("set_debug_custom_line_color", "color"), &TileMapViewer::set_debug_custom_line_color);
+	ClassDB::bind_method(D_METHOD("get_debug_custom_line_color"), &TileMapViewer::get_debug_custom_line_color);
+	ClassDB::bind_method(D_METHOD("set_debug_custom_line_width", "line_width"), &TileMapViewer::set_debug_custom_line_width);
+	ClassDB::bind_method(D_METHOD("get_debug_custom_line_width"), &TileMapViewer::get_debug_custom_line_width);
+	ClassDB::bind_method(D_METHOD("set_debug_custom_solid_color", "color"), &TileMapViewer::set_debug_custom_solid_color);
+	ClassDB::bind_method(D_METHOD("get_debug_custom_solid_color"), &TileMapViewer::get_debug_custom_solid_color);
+
 	ClassDB::bind_method(D_METHOD("get_rect"), &TileMapViewer::get_rect);
+	ClassDB::bind_method(D_METHOD("get_cell_size"), &TileMapViewer::get_cell_size);
 
 	ClassDB::bind_method(D_METHOD("get_astar_grid"), &TileMapViewer::get_astar_grid);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "map_file", PROPERTY_HINT_FILE, "*.map"), "load", "get_map_file");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "buffer_tiles"), "set_buffer_tiles", "get_buffer_tiles");
+
+	ADD_GROUP("Debug", "debug_");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_enabled"), "set_debug_enabled", "get_debug_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "debug_custom_line_color"), "set_debug_custom_line_color", "get_debug_custom_line_color");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "debug_custom_line_width", PROPERTY_HINT_RANGE, "-1,50,0.01,or_greater,suffix:px"), "set_debug_custom_line_width", "get_debug_custom_line_width");
+	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "debug_custom_solid_color"), "set_debug_custom_solid_color", "get_debug_custom_solid_color");
+	ADD_SIGNAL(MethodInfo("tile_loaded", PropertyInfo(Variant::RECT2, "rect")));
+}
+
+void TileMapViewer::_notification(int p_what) {
+	switch (p_what) {
+		case NOTIFICATION_POST_ENTER_TREE: {
+			set_physics_process_internal(true);
+			map_dirty = true;
+		} break;
+
+		case NOTIFICATION_PARENTED: {
+			if (is_inside_tree()) {
+				set_physics_process_internal(true);
+			}
+		}
+
+		case NOTIFICATION_UNPARENTED: {
+			set_physics_process_internal(false);
+		} break;
+
+		case NOTIFICATION_EXIT_TREE: {
+			set_physics_process_internal(false);
+
+#ifdef DEBUG_ENABLED
+			if (debug_map_node) {
+				debug_map_node->set_visible(false);
+			}
+#endif // DEBUG_ENABLED
+		} break;
+
+		case NOTIFICATION_DRAW: {
+			if (map_stream.is_null()) {
+				return;
+			}
+
+			_draw_map();
+		} break;
+
+		case NOTIFICATION_UNSUSPENDED: {
+			if (get_tree()->is_paused()) {
+				break;
+			}
+			[[fallthrough]];
+		}
+
+		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
+			_load_visible_tiles();
+
+			if (map_dirty) {
+				queue_redraw();
+			}
+		} break;
+	}
+}
+
+void TileMapViewer::load(const String &path) {
+	// If the requested path is the same as the currently loaded map, do nothing
+	if (map_file_path == path) {
+		return;
+	}
+
+	// Reset map state
+	_reset_map();
+
+	// If the path is empty, clear all map data and nodes
+	if (path.is_empty()) {
+		return;
+	}
+
+	// Load the new map from file
+	map_stream = MapStream::load_from_file(path);
+	map_file_path = path;
+
+	// Initialize tile data (positions and sizes)
+	_init_tiles();
+
+	// Initialize mask data and mask fragments
+	_init_mask();
+
+	// Initialize the AStarGrid2D for pathfinding based on the map's grid data.
+	_init_astar_grid();
+
+#ifdef TOOLS_ENABLED
+	// If running in the editor, load all tiles immediately for preview
+	if (Engine::get_singleton()->is_editor_hint()) {
+		// Preload everything for editor preview
+		_load_all_tiles_and_masks_editor();
+	}
+#endif
+}
+
+void TileMapViewer::_reset_map() {
+	if (debug_enabled) {
+		// Mark the map as dirty so it will be redrawn or rebuilt on the next update
+		map_dirty = true;
+	}
+
+	if (map_stream.is_null()) {
+		return;
+	}
+
+	// Remove and free all existing mask nodes
+	for (MaskData mask : masks) {
+		if (mask.mask_node) {
+			mask.mask_node->get_parent()->remove_child(mask.mask_node);
+			mask.mask_node->queue_free();
+		}
+	}
+
+	// Clear tile and mask data arrays
+	tiles.clear();
+	masks.clear();
+
+	// Release the AStarGrid2D so its grid data can be discarded
+	astar_grid.unref();
+
+	// Release the MapStream so the map resource is unloaded
+	map_stream.unref();
+	map_file_path = "";
 }
 
 void TileMapViewer::_init_tiles() {
@@ -244,23 +332,6 @@ void TileMapViewer::_init_astar_grid() {
 	}
 }
 
-#ifdef TOOLS_ENABLED
-
-void TileMapViewer::_load_all_tiles_and_masks_editor() {
-	// Iterate over all tile positions and load each tile
-	for (uint32_t y = 0; y < map_stream->get_tile_rows(); y++) {
-		for (uint32_t x = 0; x < map_stream->get_tile_cols(); x++) {
-			_load_tile(x, y);
-		}
-	}
-
-	// Load all mask fragments for the loaded tiles
-	// In editor mode, all tiles are loaded, so all masks should be processed
-	_load_masks_for_visible_tiles();
-}
-
-#endif
-
 PackedInt32Array TileMapViewer::_get_tile_indices_in_rect(const Rect2 &p_rect) const {
 	// Get the total number of tiles horizontally and vertically
 	uint32_t tile_cols = map_stream->get_tile_cols();
@@ -290,11 +361,6 @@ PackedInt32Array TileMapViewer::_get_tile_indices_in_rect(const Rect2 &p_rect) c
 }
 
 void TileMapViewer::_update_camera_limits() const {
-	// Ensure map_stream exists
-	if (map_stream.is_null()) {
-		return;
-	}
-
 	// Get the current viewport
 	Viewport *viewport = get_viewport();
 	if (!viewport) {
@@ -343,9 +409,6 @@ void TileMapViewer::_load_visible_tiles() {
 		return;
 	}
 	
-	// Update camera limits to match the new map size
-	_update_camera_limits();
-
 	// Get camera visible area in world coordinates
 	Rect2 view_rect = _get_camera_view_rect();
 	if (view_rect.size == Size2(0, 0)) {
@@ -373,11 +436,8 @@ void TileMapViewer::_load_visible_tiles() {
 	}
 
 	// Load mask fragments for the visible tiles
-	_load_masks_for_visible_tiles();
-
-	// Trigger redraw if new tiles/masks were loaded
-	if (needs_redraw) {
-		queue_redraw();
+	if (map_dirty) {
+		_load_masks_for_visible_tiles();
 	}
 }
 
@@ -408,8 +468,11 @@ void TileMapViewer::_load_tile(uint32_t x, uint32_t y) {
 	if (image.is_valid()) {
 		tile.texture = ImageTexture::create_from_image(image);
 		tile.loaded = true;
-		needs_redraw = true; // Mark for redraw
+		map_dirty = true; // Mark for redraw
 	}
+
+	// Emit signal to notify that a tile has been loaded.
+	emit_signal(SNAME("tile_loaded"), tile.region_rect);
 }
 
 void TileMapViewer::_load_masks_for_visible_tiles() {
@@ -501,35 +564,69 @@ void TileMapViewer::_load_masks_for_visible_tiles() {
 	}
 }
 
-void TileMapViewer::_draw_tiles() {
-	if (map_stream.is_null()) {
-		return;
-	}
+void TileMapViewer::_draw_map() {
+	// Update the camera limits in case the map size or camera has changed
+	_update_camera_limits();
 
+	// Iterate through all tiles and draw those that are loaded and have a valid texture
 	for (TileData tile : tiles) {
+		// Draw each tile that has been successfully loaded and has a valid texture
 		if (tile.loaded && tile.texture.is_valid()) {
 			Rect2 src_rect = Rect2(Vector2(0, 0), tile.region_rect.size);
 			draw_texture_rect_region(tile.texture, tile.region_rect, src_rect);
 		}
 	}
-	needs_redraw = false;
+
+	// Clear dirty flag after redraw
+	map_dirty = false;
+
+#ifdef DEBUG_ENABLED
+	if (debug_map_node == nullptr) {
+		debug_map_node = memnew(TileMapViewerDebugNode2D);
+		debug_map_node->set_z_index(RS::CANVAS_ITEM_Z_MAX - 1);
+		add_child(debug_map_node);
+	}
+	debug_map_node->set_visible(debug_enabled);
+	debug_map_node->queue_redraw();
+#endif // DEBUG_ENABLED
+
 }
 
-void TileMapViewer::_notification(int p_what) {
-	switch (p_what) {
-		case NOTIFICATION_DRAW: {
-			_draw_tiles();
-		} break;
+#ifdef TOOLS_ENABLED
 
-		case NOTIFICATION_PROCESS: {
-			_load_visible_tiles();
-		} break;
+void TileMapViewer::_load_all_tiles_and_masks_editor() {
+	// Iterate over all tile positions and load each tile
+	for (uint32_t y = 0; y < map_stream->get_tile_rows(); y++) {
+		for (uint32_t x = 0; x < map_stream->get_tile_cols(); x++) {
+			_load_tile(x, y);
+		}
+	}
 
-		case NOTIFICATION_VISIBILITY_CHANGED: {
-			set_process(is_visible_in_tree());
-		} break;
+	// Load all mask fragments for the loaded tiles
+	// In editor mode, all tiles are loaded, so all masks should be processed
+	if (map_dirty) {
+		_load_masks_for_visible_tiles();
 	}
 }
+
+#endif
+
+Rect2 TileMapViewer::get_rect() const {
+	if (map_stream.is_null()) {
+		return Rect2(0, 0, 1, 1);
+	}
+	Size2i s(map_stream->get_width(), map_stream->get_height());
+	if (s == Size2(0, 0)) {
+		s = Size2(1, 1);
+	}
+	return Rect2(Point2(0, 0), s);
+}
+
+Size2 TileMapViewer::get_cell_size() const {
+	return Size2(GRID_WIDTH, GRID_HEIGHT);
+}
+
+#ifdef DEBUG_ENABLED
 
 bool TileMapViewer::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
 	return get_rect().has_point(p_point);
@@ -543,17 +640,110 @@ bool TileMapViewer::_edit_use_rect() const {
 	return map_stream.is_valid();
 }
 
-Rect2 TileMapViewer::get_rect() const {
-	if (map_stream.is_null()) {
-		return Rect2(0, 0, 1, 1);
+#endif // DEBUG_ENABLED
+
+////////DEBUG////////////////////////////////////////////////////////////
+
+void TileMapViewer::set_debug_enabled(bool p_enabled) {
+#ifdef DEBUG_ENABLED
+	if (debug_enabled == p_enabled) {
+		return;
 	}
-	Size2i s(map_stream->get_width(), map_stream->get_height());
-	if (s == Size2(0, 0)) {
-		s = Size2(1, 1);
-	}
-	return Rect2(Point2(0, 0), s);
+
+	debug_enabled = p_enabled;
+	map_dirty = true;
+#endif // DEBUG_ENABLED
 }
 
-TileMapViewer::~TileMapViewer() {
-	print_line("TileMapViewer release.");
+bool TileMapViewer::get_debug_enabled() const {
+	return debug_enabled;
 }
+
+void TileMapViewer::set_debug_custom_line_color(Color p_color) {
+#ifdef DEBUG_ENABLED
+	if (debug_custom_line_color == p_color) {
+		return;
+	}
+
+	debug_custom_line_color = p_color;
+	map_dirty = true;
+#endif // DEBUG_ENABLED
+}
+
+Color TileMapViewer::get_debug_custom_line_color() const {
+	return debug_custom_line_color;
+}
+
+void TileMapViewer::set_debug_custom_line_width(float p_line_width) {
+#ifdef DEBUG_ENABLED
+	if (Math::is_equal_approx(debug_custom_line_width, p_line_width)) {
+		return;
+	}
+
+	debug_custom_line_width = p_line_width;
+	map_dirty = true;
+#endif // DEBUG_ENABLED
+}
+
+float TileMapViewer::get_debug_custom_line_width() const {
+	return debug_custom_line_width;
+}
+
+void TileMapViewer::set_debug_custom_solid_color(Color p_color) {
+#ifdef DEBUG_ENABLED
+	if (debug_custom_solid_color == p_color) {
+		return;
+	}
+
+	debug_custom_solid_color = p_color;
+	map_dirty = true;
+#endif // DEBUG_ENABLED
+}
+
+Color TileMapViewer::get_debug_custom_solid_color() const {
+	return debug_custom_solid_color;
+}
+
+#ifdef DEBUG_ENABLED
+
+void TileMapViewerDebugNode2D::_notification(int p_what) {
+	if (p_what != NOTIFICATION_DRAW) {
+		return;
+	}
+
+	if (!is_inside_tree() || !is_visible_in_tree()) {
+		return;
+	}
+
+	TileMapViewer *tile_map = Object::cast_to<TileMapViewer>(get_parent());
+	if (!tile_map) {
+		return;
+	}
+	Ref<AStarGrid2D> astar_grid = tile_map->get_astar_grid();
+
+	Size2 cell_size = astar_grid->get_cell_size();
+	Size2 map_size = astar_grid->get_size();
+
+	Vector<Vector2> debug_line_points;
+	for (uint32_t y = 0; y < map_size.y; y++) {
+		debug_line_points.append(Vector2(0, y * cell_size.y));
+		debug_line_points.append(Vector2(map_size.x * cell_size.x, y * cell_size.y));
+	}
+	for (uint32_t x = 0; x < map_size.x; x++) {
+		debug_line_points.append(Vector2(x * cell_size.x, 0));
+		debug_line_points.append(Vector2(x * cell_size.x, map_size.y * cell_size.y));
+	}
+	draw_multiline(debug_line_points, tile_map->get_debug_custom_line_color(),
+			tile_map->get_debug_custom_line_width(), false);
+
+	for (uint32_t y = 0; y < map_size.y; y++) {
+		for (uint32_t x = 0; x < map_size.x; x++) {
+			if (astar_grid->is_point_solid(Vector2i(x, y))) {
+				Rect2 rect(Vector2(x, y) * cell_size, cell_size);
+				draw_rect(rect, tile_map->get_debug_custom_solid_color());
+			}
+		}
+	}
+}
+
+#endif // DEBUG_ENABLED
