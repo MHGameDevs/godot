@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  was_stream.h                                                          */
+/*  resource_importer_was.cpp                                             */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT TOOLKIT MODULE                       */
@@ -27,72 +27,63 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#pragma once
+#include "resource_importer_was.h"
+#include "was_texture.h"
 
-#include "memory_reader.h"
-#include "../resources/was_palette_transform_set.h"
-#include "../resources/was_texture.h"
+String ResourceImporterWas::get_importer_name() const {
+	return "godot.wastexture";
+}
 
-#include "core/object/ref_counted.h"
-#include "core/io/image.h"
+String ResourceImporterWas::get_visible_name() const {
+	return "Was Texture";
+}
 
-class WasImage : public RefCounted {
-	GDCLASS(WasImage, RefCounted);
+void ResourceImporterWas::get_recognized_extensions(List<String> *p_extensions) const {
+	p_extensions->push_back("was");
+}
 
-	Ref<Image> image;
-	Size2 size;
-	Vector2 offset;
+String ResourceImporterWas::get_save_extension() const {
+	return "tres";
+}
 
-protected:
-	static void _bind_methods();
+String ResourceImporterWas::get_resource_type() const {
+	return "WasTexture";
+}
 
-public:
-	void set_image(const Ref<Image> &p_image);
-	Ref<Image> get_image() const { return image; }
+int ResourceImporterWas::get_preset_count() const {
+	return 1;
+}
 
-	void set_size(const Size2 &p_size);
-	Size2 get_size() const { return size; }
+String ResourceImporterWas::get_preset_name(int p_idx) const {
+	return "Default";
+}
 
-	void set_offset(const Vector2 &p_offset);
-	Vector2 get_offset() const { return offset; }
-};
+void ResourceImporterWas::get_import_options(const String &p_path, List<ImportOption> *r_options, int p_preset) const {
+	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "palette_transform_set", PROPERTY_HINT_RESOURCE_TYPE, "WasPaletteTransformSet"), Variant()));
+}
 
-class WasStream : public RefCounted {
-    GDCLASS(WasStream, RefCounted);
+bool ResourceImporterWas::get_option_visibility(const String &p_path, const String &p_option, const HashMap<StringName, Variant> &p_options) const {
+	return true;
+}
 
-    Ref<MemoryReader> reader;
-	String file_path;
-    uint16_t bl_size;
-    uint16_t vframes;
-	uint16_t hframes;
-	uint16_t width;
-	uint16_t height;
-	int16_t offset_x;
-	int16_t offset_y;
-    uint16_t palette[256];
-	const uint32_t *frame_offsets;
-protected:
-    static void _bind_methods();
+Error ResourceImporterWas::import(ResourceUID::ID p_source_id, const String &p_source_file, const String &p_save_path, const HashMap<StringName, Variant> &p_options, List<String> *r_platform_variants, List<String> *r_gen_files, Variant *r_metadata) {
+	Ref<WasTexture> tex = WasTexture::load_from_file(p_source_file);
+	if (tex.is_null()) {
+		return FAILED;
+	}
 
-public:
+	Ref<WasPaletteTransformSet> pts;
+	if (p_options.has("palette_transform_set")) {
+		pts = p_options["palette_transform_set"];
+		if (!pts.is_null()) {
+			tex->set_palette_transform_set(pts);
+		}
+	}
 
-    static Ref<WasStream> load_from_file(const String &p_path);
-
-	void change_palette(const Ref<WasPaletteTransformSet> &p_set);
-    void reset_palette();
-
-	Ref<WasImage> get_image() const;
-
-    uint32_t get_width() const;
-	uint32_t get_height() const;
-	uint32_t get_hframes() const;
-	uint32_t get_vframes() const;
-    Vector2 get_offset() const;
-
-	WasStream() {}
-	~WasStream();
-private:
-    uint32_t _convert_rgb565_to_rgb888(uint16_t color, uint8_t alpha) const;
-	uint16_t _convert_alpha565(uint16_t src, uint8_t alpha) const;
-    uint16_t _get_color(uint8_t index) const;
-};
+	String save_path = p_save_path + "." + get_save_extension();
+	Error err = ResourceSaver::save(tex, save_path);
+	if (err != OK) {
+		return err;
+	}
+	return OK;
+}

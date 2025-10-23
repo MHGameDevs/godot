@@ -78,7 +78,6 @@ private:
 	Color debug_custom_solid_color = Color(1.0, 0.5, 0.5, 0.4);
 #ifdef DEBUG_ENABLED
 	// Debug properties internal only
-	//RID debug_map_instance;
 	Node2D *debug_map_node = nullptr;
 #endif // DEBUG_ENABLED
 
@@ -87,8 +86,10 @@ protected:
 
 	void _notification(int p_what);
 public:
+	static void init_shaders();
+	static void finish_shaders();
 
-	void load(const String &path);
+	void load(const String &p_path);
 	String get_map_file() const { return map_file_path; }
 
 	void set_buffer_tiles(int b) { buffer_tiles = b; }
@@ -118,8 +119,6 @@ public:
 #endif // DEBUG_ENABLED
 
 private:
-	static void _init_static_shader();
-
 	void _reset_map();
 
 	void _init_tiles();
@@ -140,8 +139,4 @@ private:
 #ifdef TOOLS_ENABLED
 	void _load_all_tiles_and_masks_editor();
 #endif
-
-#ifdef DEBUG_ENABLED
-	//void _draw_debug_map();
-#endif // DEBUG_ENABLED
 };

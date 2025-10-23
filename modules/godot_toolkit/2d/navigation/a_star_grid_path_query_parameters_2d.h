@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  was_stream.h                                                          */
+/*  a_star_grid_path_query_parameters_2d.h                                */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT TOOLKIT MODULE                       */
@@ -29,70 +29,39 @@
 
 #pragma once
 
-#include "memory_reader.h"
-#include "../resources/was_palette_transform_set.h"
-#include "../resources/was_texture.h"
-
 #include "core/object/ref_counted.h"
-#include "core/io/image.h"
+#include "core/math/a_star_grid_2d.h"
 
-class WasImage : public RefCounted {
-	GDCLASS(WasImage, RefCounted);
+class AStarGridPathQueryParameters2D : public RefCounted {
+    GDCLASS(AStarGridPathQueryParameters2D, RefCounted);
 
-	Ref<Image> image;
-	Size2 size;
-	Vector2 offset;
-
-protected:
-	static void _bind_methods();
-
-public:
-	void set_image(const Ref<Image> &p_image);
-	Ref<Image> get_image() const { return image; }
-
-	void set_size(const Size2 &p_size);
-	Size2 get_size() const { return size; }
-
-	void set_offset(const Vector2 &p_offset);
-	Vector2 get_offset() const { return offset; }
-};
-
-class WasStream : public RefCounted {
-    GDCLASS(WasStream, RefCounted);
-
-    Ref<MemoryReader> reader;
-	String file_path;
-    uint16_t bl_size;
-    uint16_t vframes;
-	uint16_t hframes;
-	uint16_t width;
-	uint16_t height;
-	int16_t offset_x;
-	int16_t offset_y;
-    uint16_t palette[256];
-	const uint32_t *frame_offsets;
 protected:
     static void _bind_methods();
 
-public:
-
-    static Ref<WasStream> load_from_file(const String &p_path);
-
-	void change_palette(const Ref<WasPaletteTransformSet> &p_set);
-    void reset_palette();
-
-	Ref<WasImage> get_image() const;
-
-    uint32_t get_width() const;
-	uint32_t get_height() const;
-	uint32_t get_hframes() const;
-	uint32_t get_vframes() const;
-    Vector2 get_offset() const;
-
-	WasStream() {}
-	~WasStream();
 private:
-    uint32_t _convert_rgb565_to_rgb888(uint16_t color, uint8_t alpha) const;
-	uint16_t _convert_alpha565(uint16_t src, uint8_t alpha) const;
-    uint16_t _get_color(uint8_t index) const;
+	Vector2 start_position;
+	Vector2 target_position;
+    bool allow_partial_path = false;
+	AStarGrid2D::DiagonalMode diagonal_mode = AStarGrid2D::DIAGONAL_MODE_ALWAYS;
+	AStarGrid2D::Heuristic compute_heuristic = AStarGrid2D::HEURISTIC_EUCLIDEAN;
+	AStarGrid2D::Heuristic estimate_heuristic = AStarGrid2D::HEURISTIC_EUCLIDEAN;
+
+public:
+    void set_start_position(const Vector2 p_start_position);
+	Vector2 get_start_position() const { return start_position; } 
+
+	void set_target_position(const Vector2 p_target_position);
+	Vector2 get_target_position() const { return target_position; }
+
+	void set_allow_partial_path(bool p_allow_partial_path);
+	bool get_allow_partial_path() const { return allow_partial_path; }
+
+	void set_diagonal_mode(AStarGrid2D::DiagonalMode p_diagonal_mode);
+	AStarGrid2D::DiagonalMode get_diagonal_mode() const { return diagonal_mode; }
+
+	void set_compute_heuristic(AStarGrid2D::Heuristic p_heuristic);
+	AStarGrid2D::Heuristic get_compute_heuristic() const { return compute_heuristic; }
+
+	void set_estimate_heuristic(AStarGrid2D::Heuristic p_heuristic);
+	AStarGrid2D::Heuristic get_estimate_heuristic() const { return estimate_heuristic; }
 };

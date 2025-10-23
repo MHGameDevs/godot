@@ -946,6 +946,7 @@ public:
 	void set_cursor_can_exit_tree(bool p_enable);
 
 	VScrollBar *get_vscroll_bar() { return v_scroll; }
+	HScrollBar *get_hscroll_bar() { return h_scroll; }
 
 	void set_hide_folding(bool p_hide);
 	bool is_folding_hidden() const;

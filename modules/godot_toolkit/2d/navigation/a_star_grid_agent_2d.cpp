@@ -28,9 +28,9 @@
 /**************************************************************************/
 
 #include "a_star_grid_agent_2d.h"
+#include "a_star_grid_server_2d.h"
 
 #include "core/math/geometry_2d.h"
-#include "servers/navigation_server_2d.h"
 
 void AStarGridAgent2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_path_desired_distance", "desired_distance"), &AStarGridAgent2D::set_path_desired_distance);
@@ -48,11 +48,11 @@ void AStarGridAgent2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_diagonal_mode", "diagonal_mode"), &AStarGridAgent2D::set_diagonal_mode);
 	ClassDB::bind_method(D_METHOD("get_diagonal_mode"), &AStarGridAgent2D::get_diagonal_mode);
 
-	ClassDB::bind_method(D_METHOD("set_default_compute_heuristic", "heuristic"), &AStarGridAgent2D::set_default_compute_heuristic);
-	ClassDB::bind_method(D_METHOD("get_default_compute_heuristic"), &AStarGridAgent2D::get_default_compute_heuristic);
+	ClassDB::bind_method(D_METHOD("set_compute_heuristic", "heuristic"), &AStarGridAgent2D::set_compute_heuristic);
+	ClassDB::bind_method(D_METHOD("get_compute_heuristic"), &AStarGridAgent2D::get_compute_heuristic);
 
-	ClassDB::bind_method(D_METHOD("set_default_estimate_heuristic", "heuristic"), &AStarGridAgent2D::set_default_estimate_heuristic);
-	ClassDB::bind_method(D_METHOD("get_default_estimate_heuristic"), &AStarGridAgent2D::get_default_estimate_heuristic);
+	ClassDB::bind_method(D_METHOD("set_estimate_heuristic", "heuristic"), &AStarGridAgent2D::set_estimate_heuristic);
+	ClassDB::bind_method(D_METHOD("get_estimate_heuristic"), &AStarGridAgent2D::get_estimate_heuristic);
 
 	ClassDB::bind_method(D_METHOD("set_target_position", "position"), &AStarGridAgent2D::set_target_position);
 	ClassDB::bind_method(D_METHOD("get_target_position"), &AStarGridAgent2D::get_target_position);
@@ -77,8 +77,8 @@ void AStarGridAgent2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "path_max_distance", PROPERTY_HINT_RANGE, "10,1000,1,or_greater,suffix:px"), "set_path_max_distance", "get_path_max_distance");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "allow_partial_path"), "set_allow_partial_path", "get_allow_partial_path");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "diagonal_mode", PROPERTY_HINT_ENUM, "DIAGONAL_MODE_ALWAYS,DIAGONAL_MODE_NEVER,DIAGONAL_MODE_AT_LEAST_ONE_WALKABLE,DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES,DIAGONAL_MODE_MAX"), "set_diagonal_mode", "get_diagonal_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "default_compute_heuristic", PROPERTY_HINT_ENUM, "HEURISTIC_EUCLIDEAN,HEURISTIC_MANHATTAN,HEURISTIC_OCTILE,HEURISTIC_CHEBYSHEV,HEURISTIC_MAX"), "set_diagonal_mode", "get_diagonal_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "default_estimate_heuristic", PROPERTY_HINT_ENUM, "HEURISTIC_EUCLIDEAN,HEURISTIC_MANHATTAN,HEURISTIC_OCTILE,HEURISTIC_CHEBYSHEV,HEURISTIC_MAX"), "set_diagonal_mode", "get_diagonal_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "compute_heuristic", PROPERTY_HINT_ENUM, "HEURISTIC_EUCLIDEAN,HEURISTIC_MANHATTAN,HEURISTIC_OCTILE,HEURISTIC_CHEBYSHEV,HEURISTIC_MAX"), "set_compute_heuristic", "get_compute_heuristic");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "estimate_heuristic", PROPERTY_HINT_ENUM, "HEURISTIC_EUCLIDEAN,HEURISTIC_MANHATTAN,HEURISTIC_OCTILE,HEURISTIC_CHEBYSHEV,HEURISTIC_MAX"), "set_estimate_heuristic", "get_estimate_heuristic");
 
 	ADD_GROUP("Avoidance", "");
 	ClassDB::bind_method(D_METHOD("set_debug_enabled", "enabled"), &AStarGridAgent2D::set_debug_enabled);
@@ -160,6 +160,11 @@ void AStarGridAgent2D::_notification(int p_what) {
 	}
 }
 
+AStarGridAgent2D::AStarGridAgent2D() {
+	path_query = Ref<AStarGridPathQueryParameters2D>();
+	path_query.instantiate();
+}
+
 void AStarGridAgent2D::set_agent_parent(Node *p_agent_parent) {
 	if (agent_parent == p_agent_parent) {
 		return;
@@ -167,10 +172,8 @@ void AStarGridAgent2D::set_agent_parent(Node *p_agent_parent) {
 
 	if (Object::cast_to<Node2D>(p_agent_parent) != nullptr) {
 		agent_parent = Object::cast_to<Node2D>(p_agent_parent);
-		_update_agent_tilemap();
 	} else {
 		agent_parent = nullptr;
-		agent_tilemap = nullptr;
 	}
 }
 
@@ -199,30 +202,27 @@ void AStarGridAgent2D::set_path_max_distance(real_t p_path_max_distance) {
 }
 
 void AStarGridAgent2D::set_diagonal_mode(AStarGrid2D::DiagonalMode p_diagonal_mode) {
-	ERR_FAIL_INDEX((int)p_diagonal_mode, (int)AStarGrid2D::DIAGONAL_MODE_MAX);
-	diagonal_mode = p_diagonal_mode;
+	path_query->set_diagonal_mode(p_diagonal_mode);
 }
 
 AStarGrid2D::DiagonalMode AStarGridAgent2D::get_diagonal_mode() const {
-	return diagonal_mode;
+	return path_query->get_diagonal_mode();
 }
 
-void AStarGridAgent2D::set_default_compute_heuristic(AStarGrid2D::Heuristic p_heuristic) {
-	ERR_FAIL_INDEX((int)p_heuristic, (int)AStarGrid2D::HEURISTIC_MAX);
-	default_compute_heuristic = p_heuristic;
+void AStarGridAgent2D::set_compute_heuristic(AStarGrid2D::Heuristic p_heuristic) {
+	path_query->set_compute_heuristic(p_heuristic);
 }
 
-AStarGrid2D::Heuristic AStarGridAgent2D::get_default_compute_heuristic() const {
-	return default_compute_heuristic;
+AStarGrid2D::Heuristic AStarGridAgent2D::get_compute_heuristic() const {
+	return path_query->get_compute_heuristic();
 }
 
-void AStarGridAgent2D::set_default_estimate_heuristic(AStarGrid2D::Heuristic p_heuristic) {
-	ERR_FAIL_INDEX((int)p_heuristic, (int)AStarGrid2D::HEURISTIC_MAX);
-	default_estimate_heuristic = p_heuristic;
+void AStarGridAgent2D::set_estimate_heuristic(AStarGrid2D::Heuristic p_heuristic) {
+	path_query->set_estimate_heuristic(p_heuristic);
 }
 
-AStarGrid2D::Heuristic AStarGridAgent2D::get_default_estimate_heuristic() const {
-	return default_estimate_heuristic;
+AStarGrid2D::Heuristic AStarGridAgent2D::get_estimate_heuristic() const {
+	return path_query->get_estimate_heuristic();
 }
 
 real_t AStarGridAgent2D::get_path_max_distance() const {
@@ -230,10 +230,10 @@ real_t AStarGridAgent2D::get_path_max_distance() const {
 }
 
 void AStarGridAgent2D::set_allow_partial_path(bool p_allow_partial_path) {
-	allow_partial_path = p_allow_partial_path;
+	path_query->set_allow_partial_path(p_allow_partial_path);
 }
 
-void AStarGridAgent2D::set_target_position(Vector2 p_position) {
+void AStarGridAgent2D::set_target_position(const Vector2 p_position) {
 	// Intentionally not checking for equality of the parameter, as we want to update the path even if the target position is the same in case the world changed.
 
 	target_position = p_position;
@@ -295,28 +295,8 @@ Vector2 AStarGridAgent2D::_get_final_position() const {
 	return navigation_path[navigation_path.size() - 1];
 }
 
-void AStarGridAgent2D::_update_agent_tilemap() {
-	agent_tilemap = nullptr;
-
-	if (!agent_parent) {
-		return;
-	}
-
-	Node *p = agent_parent;
-	while (p) {
-		if (TileMapViewer *tilemap = Object::cast_to<TileMapViewer>(p)) {
-			agent_tilemap = tilemap;
-			break;
-		}
-		p = p->get_parent();
-	}
-}
-
 void AStarGridAgent2D::_update_navigation() {
 	if (agent_parent == nullptr) {
-		return;
-	}
-	if (agent_tilemap == nullptr) {
 		return;
 	}
 	if (!agent_parent->is_inside_tree()) {
@@ -346,10 +326,10 @@ void AStarGridAgent2D::_update_navigation() {
 	}
 
 	if (reload_path) {
-		Ref<AStarGrid2D> astar_grid = agent_tilemap->get_astar_grid();
+		path_query->set_start_position(origin);
+		path_query->set_target_position(target_position);
 
-		navigation_path = astar_grid->get_point_path(origin / astar_grid->get_cell_size(),
-			target_position / astar_grid->get_cell_size(), allow_partial_path);
+		navigation_path = AStarGridServer2D::get_singleton()->query_path(path_query);
 
 #ifdef DEBUG_ENABLED
 		debug_path_dirty = true;
@@ -525,7 +505,7 @@ void AStarGridAgent2D::_update_debug_path() {
 
 	RenderingServer::get_singleton()->canvas_item_clear(debug_path_instance);
 
-	if (!(debug_enabled && NavigationServer2D::get_singleton()->get_debug_navigation_enable_agent_paths())) {
+	if (!debug_enabled) {
 		return;
 	}
 

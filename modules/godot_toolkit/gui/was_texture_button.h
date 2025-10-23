@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  was_stream.h                                                          */
+/*  was_texture_button.h                                                  */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT TOOLKIT MODULE                       */
@@ -29,70 +29,27 @@
 
 #pragma once
 
-#include "memory_reader.h"
-#include "../resources/was_palette_transform_set.h"
 #include "../resources/was_texture.h"
 
-#include "core/object/ref_counted.h"
-#include "core/io/image.h"
+#include "scene/gui/texture_button.h"
 
-class WasImage : public RefCounted {
-	GDCLASS(WasImage, RefCounted);
+class WasTextureButton : public TextureButton {
+    GDCLASS(WasTextureButton, TextureButton);
 
-	Ref<Image> image;
-	Size2 size;
-	Vector2 offset;
+	Ref<WasTexture> was_texture;
+	bool use_click_mask = false;
 
-protected:
-	static void _bind_methods();
-
-public:
-	void set_image(const Ref<Image> &p_image);
-	Ref<Image> get_image() const { return image; }
-
-	void set_size(const Size2 &p_size);
-	Size2 get_size() const { return size; }
-
-	void set_offset(const Vector2 &p_offset);
-	Vector2 get_offset() const { return offset; }
-};
-
-class WasStream : public RefCounted {
-    GDCLASS(WasStream, RefCounted);
-
-    Ref<MemoryReader> reader;
-	String file_path;
-    uint16_t bl_size;
-    uint16_t vframes;
-	uint16_t hframes;
-	uint16_t width;
-	uint16_t height;
-	int16_t offset_x;
-	int16_t offset_y;
-    uint16_t palette[256];
-	const uint32_t *frame_offsets;
 protected:
     static void _bind_methods();
+    void _validate_property(PropertyInfo &p_property) const;
 
 public:
+	void set_was_texture(const Ref<WasTexture> &p_was_texture);
+	Ref<WasTexture> get_was_texture() const { return was_texture; }
 
-    static Ref<WasStream> load_from_file(const String &p_path);
+	void set_use_click_mask(const bool p_use_click_mask);
+	bool get_use_click_mask() const { return use_click_mask; }
 
-	void change_palette(const Ref<WasPaletteTransformSet> &p_set);
-    void reset_palette();
-
-	Ref<WasImage> get_image() const;
-
-    uint32_t get_width() const;
-	uint32_t get_height() const;
-	uint32_t get_hframes() const;
-	uint32_t get_vframes() const;
-    Vector2 get_offset() const;
-
-	WasStream() {}
-	~WasStream();
 private:
-    uint32_t _convert_rgb565_to_rgb888(uint16_t color, uint8_t alpha) const;
-	uint16_t _convert_alpha565(uint16_t src, uint8_t alpha) const;
-    uint16_t _get_color(uint8_t index) const;
+	void _was_texture_changed();
 };

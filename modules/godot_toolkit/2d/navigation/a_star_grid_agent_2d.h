@@ -30,6 +30,7 @@
 #pragma once
 
 #include "../tile_map_viewer.h"
+#include "a_star_grid_path_query_parameters_2d.h"
 
 #include "scene/2d/node_2d.h"
 
@@ -37,17 +38,13 @@ class AStarGridAgent2D : public Node2D {
     GDCLASS(AStarGridAgent2D, Node2D);
 
 	Node2D *agent_parent = nullptr;
-	TileMapViewer *agent_tilemap = nullptr;
 
 	real_t path_desired_distance = 20.0;
 	real_t target_desired_distance = 10.0;
 	real_t path_max_distance = 100.0;
-	bool allow_partial_path = false;
-	AStarGrid2D::DiagonalMode diagonal_mode = AStarGrid2D::DIAGONAL_MODE_ALWAYS;
-	AStarGrid2D::Heuristic default_compute_heuristic = AStarGrid2D::HEURISTIC_EUCLIDEAN;
-	AStarGrid2D::Heuristic default_estimate_heuristic = AStarGrid2D::HEURISTIC_EUCLIDEAN;
 
 	Vector2 target_position;
+	Ref<AStarGridPathQueryParameters2D> path_query;
 
 	bool target_position_submitted = false;
 
@@ -75,6 +72,8 @@ protected:
 	void _notification(int p_what);
 
 public:
+	AStarGridAgent2D();
+
 	void set_agent_parent(Node *p_agent_parent);
 
 	void set_path_desired_distance(real_t p_dd);
@@ -87,18 +86,18 @@ public:
 	real_t get_path_max_distance() const;
 
 	void set_allow_partial_path(bool p_allow_partial_path);
-	bool get_allow_partial_path() const { return allow_partial_path; };
+	bool get_allow_partial_path() const { return path_query->get_allow_partial_path(); }
 
 	void set_diagonal_mode(AStarGrid2D::DiagonalMode p_diagonal_mode);
 	AStarGrid2D::DiagonalMode get_diagonal_mode() const;
 
-	void set_default_compute_heuristic(AStarGrid2D::Heuristic p_heuristic);
-	AStarGrid2D::Heuristic get_default_compute_heuristic() const;
+	void set_compute_heuristic(AStarGrid2D::Heuristic p_heuristic);
+	AStarGrid2D::Heuristic get_compute_heuristic() const;
 
-	void set_default_estimate_heuristic(AStarGrid2D::Heuristic p_heuristic);
-	AStarGrid2D::Heuristic get_default_estimate_heuristic() const;
+	void set_estimate_heuristic(AStarGrid2D::Heuristic p_heuristic);
+	AStarGrid2D::Heuristic get_estimate_heuristic() const;
 
-	void set_target_position(Vector2 p_position);
+	void set_target_position(const Vector2 p_position);
 	Vector2 get_target_position() const;
 
     float get_path_length() const;
@@ -129,8 +128,6 @@ public:
 private:
 	bool _is_target_reachable() const;
 	Vector2 _get_final_position() const;
-
-	void _update_agent_tilemap();
 
 	void _update_navigation();
 	void _advance_waypoints(const Vector2 &p_origin);

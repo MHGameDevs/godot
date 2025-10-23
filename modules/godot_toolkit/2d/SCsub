@@ -6,10 +6,5 @@ Import("env_modules")
 
 env_godot_toolkit = env_modules.Clone()
 
-# Godot source files
 env_godot_toolkit.add_source_files(env.modules_sources, "*.cpp")
-
-SConscript("2d/SCsub")
-SConscript("gui/SCsub")
-SConscript("resources/SCsub")
-SConscript("io/SCsub")
+env_godot_toolkit.add_source_files(env.modules_sources, "navigation/*.cpp")

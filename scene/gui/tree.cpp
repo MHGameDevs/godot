@@ -2092,7 +2092,9 @@ int Tree::get_item_height(TreeItem *p_item) const {
 		return 0;
 	}
 	int height = compute_item_height(p_item);
-	height += theme_cache.v_separation;
+	if (height != 0) { // Only add vertical separation for visible items to avoid hidden nodes taking space
+		height += theme_cache.v_separation;
+	}
 
 	if (!p_item->collapsed) { // If not collapsed, check the children.
 
@@ -4685,7 +4687,7 @@ void Tree::update_scrollbars() {
 			display_hscroll = internal_min_size.width > tree_content_size.width;
 		}
 	}
-
+	
 	if (display_vscroll) {
 		v_scroll->show();
 		v_scroll->set_max(internal_min_size.height);
@@ -7309,6 +7311,9 @@ void Tree::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_auto_tooltip", "enable"), &Tree::set_auto_tooltip);
 	ClassDB::bind_method(D_METHOD("is_auto_tooltip_enabled"), &Tree::is_auto_tooltip_enabled);
+
+	ClassDB::bind_method(D_METHOD("get_vscroll_bar"), &Tree::get_vscroll_bar);
+	ClassDB::bind_method(D_METHOD("get_hscroll_bar"), &Tree::get_hscroll_bar);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "columns"), "set_columns", "get_columns");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "column_titles_visible"), "set_column_titles_visible", "are_column_titles_visible");

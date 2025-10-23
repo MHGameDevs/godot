@@ -28,6 +28,7 @@
 /**************************************************************************/
 
 #include "tile_map_viewer.h"
+#include "navigation/a_star_grid_server_2d.h"
 
 #include "scene/2d/sprite_2d.h"
 #include "scene/2d/camera_2d.h"
@@ -48,11 +49,7 @@ protected:
 
 #endif
 
-void TileMapViewer::_init_static_shader() {
-	if (s_mask_shader.is_valid()) {
-		return;
-	}
-
+void TileMapViewer::init_shaders() {
 	s_mask_shader.instantiate();
 	s_mask_shader->set_code(R"(
 		shader_type canvas_item;
@@ -77,6 +74,10 @@ void TileMapViewer::_init_static_shader() {
 			}
 		}
 	)");
+}
+
+void TileMapViewer::finish_shaders() {
+	s_mask_shader.unref();
 }
 
 void TileMapViewer::_bind_methods() {
@@ -114,6 +115,7 @@ void TileMapViewer::_bind_methods() {
 void TileMapViewer::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_POST_ENTER_TREE: {
+			AStarGridServer2D::get_singleton()->register_map(this);
 			set_physics_process_internal(true);
 			map_dirty = true;
 		} break;
@@ -129,6 +131,7 @@ void TileMapViewer::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_EXIT_TREE: {
+			AStarGridServer2D::get_singleton()->unregister_map(this);
 			set_physics_process_internal(false);
 
 #ifdef DEBUG_ENABLED
@@ -163,9 +166,9 @@ void TileMapViewer::_notification(int p_what) {
 	}
 }
 
-void TileMapViewer::load(const String &path) {
+void TileMapViewer::load(const String &p_path) {
 	// If the requested path is the same as the currently loaded map, do nothing
-	if (map_file_path == path) {
+	if (map_file_path == p_path) {
 		return;
 	}
 
@@ -173,14 +176,14 @@ void TileMapViewer::load(const String &path) {
 	_reset_map();
 
 	// If the path is empty, clear all map data and nodes
-	if (path.is_empty()) {
+	if (p_path.is_empty()) {
 		return;
 	}
 
 	// Load the new map from file
-	map_stream = MapStream::load_from_file(path);
-	map_file_path = path;
-
+	map_stream = MapStream::load_from_file(p_path);
+	map_file_path = p_path;
+	
 	// Initialize tile data (positions and sizes)
 	_init_tiles();
 
@@ -197,6 +200,9 @@ void TileMapViewer::load(const String &path) {
 		_load_all_tiles_and_masks_editor();
 	}
 #endif
+
+	// Enable YSort by default
+	set_y_sort_enabled(true);
 }
 
 void TileMapViewer::_reset_map() {
@@ -519,16 +525,13 @@ void TileMapViewer::_load_masks_for_visible_tiles() {
 
 					 // Create the mask node if it does not exist yet
 					if (!mask.mask_node) {
-						Point2 pos = Point2(mask.region_rect.position.x, mask.region_rect.position.y + mask.region_rect.size.y);
+						Point2 pos = Point2(mask.region_rect.position.x, mask.region_rect.position.y + mask.region_rect.size.y - GRID_HEIGHT);
 
 						Node2D *mask_node = memnew(Node2D);
 						mask_node->set_position(pos);
 						mask.mask_node = mask_node;
 						add_child(mask_node); // Add mask node to the TileMapViewer
 					}
-
-					// Ensure the static shader is initialized
-					_init_static_shader();
 
 					 // Create a ShaderMaterial for this fragment
 					Ref<ShaderMaterial> mat;

@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  was_stream.h                                                          */
+/*  was_sprite_2d.cpp                                                     */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT TOOLKIT MODULE                       */
@@ -27,72 +27,51 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#pragma once
+#include "was_sprite_2d.h"
 
-#include "memory_reader.h"
-#include "../resources/was_palette_transform_set.h"
-#include "../resources/was_texture.h"
+void WasSprite2D::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_was_texture", "texture"), &WasSprite2D::set_was_texture);
+	ClassDB::bind_method(D_METHOD("get_was_texture"), &WasSprite2D::get_was_texture);
 
-#include "core/object/ref_counted.h"
-#include "core/io/image.h"
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "was_texture", PROPERTY_HINT_RESOURCE_TYPE, "WasTexture"), "set_was_texture", "get_was_texture");
+}
 
-class WasImage : public RefCounted {
-	GDCLASS(WasImage, RefCounted);
+void WasSprite2D::_validate_property(PropertyInfo &p_property) const {
+	if (p_property.name == "texture") {
+		p_property.usage = PROPERTY_USAGE_NONE;
+	}
+}
 
-	Ref<Image> image;
-	Size2 size;
-	Vector2 offset;
+void WasSprite2D::set_was_texture(const Ref<WasTexture> &p_was_texture) {
+	if (was_texture == p_was_texture) {
+		return;
+	}
 
-protected:
-	static void _bind_methods();
+	if (was_texture.is_valid()) {
+		was_texture->disconnect_changed(callable_mp(this, &WasSprite2D::_was_texture_changed));
+	}
 
-public:
-	void set_image(const Ref<Image> &p_image);
-	Ref<Image> get_image() const { return image; }
+	was_texture = p_was_texture;
 
-	void set_size(const Size2 &p_size);
-	Size2 get_size() const { return size; }
+	if (was_texture.is_valid()) {
+		was_texture->connect_changed(callable_mp(this, &WasSprite2D::_was_texture_changed));
+	}
 
-	void set_offset(const Vector2 &p_offset);
-	Vector2 get_offset() const { return offset; }
-};
+	_was_texture_changed();
+}
 
-class WasStream : public RefCounted {
-    GDCLASS(WasStream, RefCounted);
-
-    Ref<MemoryReader> reader;
-	String file_path;
-    uint16_t bl_size;
-    uint16_t vframes;
-	uint16_t hframes;
-	uint16_t width;
-	uint16_t height;
-	int16_t offset_x;
-	int16_t offset_y;
-    uint16_t palette[256];
-	const uint32_t *frame_offsets;
-protected:
-    static void _bind_methods();
-
-public:
-
-    static Ref<WasStream> load_from_file(const String &p_path);
-
-	void change_palette(const Ref<WasPaletteTransformSet> &p_set);
-    void reset_palette();
-
-	Ref<WasImage> get_image() const;
-
-    uint32_t get_width() const;
-	uint32_t get_height() const;
-	uint32_t get_hframes() const;
-	uint32_t get_vframes() const;
-    Vector2 get_offset() const;
-
-	WasStream() {}
-	~WasStream();
-private:
-    uint32_t _convert_rgb565_to_rgb888(uint16_t color, uint8_t alpha) const;
-	uint16_t _convert_alpha565(uint16_t src, uint8_t alpha) const;
-    uint16_t _get_color(uint8_t index) const;
-};
+void WasSprite2D::_was_texture_changed() {
+	if (was_texture.is_valid()) {
+		set_texture(was_texture);
+		set_centered(false);
+		set_offset(was_texture->get_offset());
+		set_hframes(was_texture->get_hframes());
+		set_vframes(was_texture->get_vframes());
+	} else {
+		set_texture(Ref<Texture2D>());
+		set_centered(true);
+		set_offset(Vector2());
+		set_hframes(1);
+		set_vframes(1);
+	}
+}

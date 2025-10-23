@@ -95,12 +95,39 @@ uint16_t MemoryReader::get_16() {
 	return v;
 }
 
+int8_t MemoryReader::get_s8() {
+	if (ptr + 1 > end) {
+		return 0;
+	}
+	return static_cast<int8_t>(*ptr++);
+}
+
+int16_t MemoryReader::get_s16() {
+	if (ptr + 2 > end) {
+		return 0;
+	}
+	int16_t v;
+	memcpy(&v, ptr, sizeof(int16_t));
+	ptr += 2;
+	return v;
+}
+
 uint32_t MemoryReader::get_32() {
 	if (ptr + 4 > end) {
 		return 0;
 	}
 	uint32_t v;
 	memcpy(&v, ptr, sizeof(uint32_t));
+	ptr += 4;
+	return v;
+}
+
+int32_t MemoryReader::get_s32() {
+	if (ptr + 4 > end) {
+		return 0;
+	}
+	int32_t v;
+	memcpy(&v, ptr, sizeof(int32_t));
 	ptr += 4;
 	return v;
 }

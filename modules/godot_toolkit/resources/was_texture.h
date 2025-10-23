@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  was_stream.h                                                          */
+/*  was_texture.h                                                         */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT TOOLKIT MODULE                       */
@@ -29,70 +29,56 @@
 
 #pragma once
 
-#include "memory_reader.h"
-#include "../resources/was_palette_transform_set.h"
-#include "../resources/was_texture.h"
+#include "was_palette_transform_set.h"
 
-#include "core/object/ref_counted.h"
-#include "core/io/image.h"
+#include "core/io/resource_loader.h"
+#include "core/io/resource_importer.h"
+#include "scene/resources/image_texture.h"
+#include "editor/inspector/editor_resource_preview.h"
 
-class WasImage : public RefCounted {
-	GDCLASS(WasImage, RefCounted);
+class BitMap;
 
-	Ref<Image> image;
-	Size2 size;
+class WasTexture : public ImageTexture {
+	GDCLASS(WasTexture, ImageTexture);
+
+    String path_to_file;
+	
+	int vframes = 1;
+	int hframes = 1;
 	Vector2 offset;
+	bool image_stored = false;
 
+	Ref<WasPaletteTransformSet> palette_transform_set;
 protected:
-	static void _bind_methods();
+	virtual void reload_from_file() override;
 
-public:
-	void set_image(const Ref<Image> &p_image);
-	Ref<Image> get_image() const { return image; }
+	void _get_property_list(List<PropertyInfo> *p_list) const;
 
-	void set_size(const Size2 &p_size);
-	Size2 get_size() const { return size; }
-
-	void set_offset(const Vector2 &p_offset);
-	Vector2 get_offset() const { return offset; }
-};
-
-class WasStream : public RefCounted {
-    GDCLASS(WasStream, RefCounted);
-
-    Ref<MemoryReader> reader;
-	String file_path;
-    uint16_t bl_size;
-    uint16_t vframes;
-	uint16_t hframes;
-	uint16_t width;
-	uint16_t height;
-	int16_t offset_x;
-	int16_t offset_y;
-    uint16_t palette[256];
-	const uint32_t *frame_offsets;
-protected:
     static void _bind_methods();
 
 public:
+	static Ref<WasTexture> load_from_file(const String &p_path);
 
-    static Ref<WasStream> load_from_file(const String &p_path);
+	void load(const String &p_path);
+	String get_load_path() const;
 
-	void change_palette(const Ref<WasPaletteTransformSet> &p_set);
-    void reset_palette();
+	void set_palette_transform_set(const Ref<WasPaletteTransformSet> &p_set);
+	Ref<WasPaletteTransformSet> get_palette_transform_set() const { return palette_transform_set; }
 
-	Ref<WasImage> get_image() const;
+	Size2 get_frame_size() const { return Size2(get_width() / hframes, get_height() / vframes); }
+	Vector2 get_offset() const { return offset; }
+	int get_vframes() const { return vframes; };
+    int get_hframes() const { return hframes; }
 
-    uint32_t get_width() const;
-	uint32_t get_height() const;
-	uint32_t get_hframes() const;
-	uint32_t get_vframes() const;
-    Vector2 get_offset() const;
-
-	WasStream() {}
-	~WasStream();
 private:
-    uint32_t _convert_rgb565_to_rgb888(uint16_t color, uint8_t alpha) const;
-	uint16_t _convert_alpha565(uint16_t src, uint8_t alpha) const;
-    uint16_t _get_color(uint8_t index) const;
+	void _update_palette_transform_set();
+
+};
+
+class ResourceFormatLoaderWasTexture : public ResourceFormatLoader {
+public:
+	virtual Ref<Resource> load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_use_sub_threads = false, float *r_progress = nullptr, CacheMode p_cache_mode = CACHE_MODE_REUSE) override;
+	virtual void get_recognized_extensions(List<String> *p_extensions) const override;
+	virtual bool handles_type(const String &p_type) const override;
+	virtual String get_resource_type(const String &p_path) const override;
 };

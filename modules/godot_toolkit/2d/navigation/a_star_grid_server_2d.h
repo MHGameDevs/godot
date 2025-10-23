@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  was_stream.h                                                          */
+/*  a_star_grid_server_2d.h                                               */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT TOOLKIT MODULE                       */
@@ -29,70 +29,32 @@
 
 #pragma once
 
-#include "memory_reader.h"
-#include "../resources/was_palette_transform_set.h"
-#include "../resources/was_texture.h"
+#include "../tile_map_viewer.h"
+#include "a_star_grid_path_query_parameters_2d.h"
 
-#include "core/object/ref_counted.h"
-#include "core/io/image.h"
+#include "core/math/a_star_grid_2d.h"
 
-class WasImage : public RefCounted {
-	GDCLASS(WasImage, RefCounted);
+class AStarGridServer2D : public Object {
+	GDCLASS(AStarGridServer2D, Object);
 
-	Ref<Image> image;
-	Size2 size;
-	Vector2 offset;
+	static AStarGridServer2D *singleton;
+
+	LocalVector<TileMapViewer *> active_maps;
 
 protected:
 	static void _bind_methods();
 
 public:
-	void set_image(const Ref<Image> &p_image);
-	Ref<Image> get_image() const { return image; }
+	static AStarGridServer2D *get_singleton();
 
-	void set_size(const Size2 &p_size);
-	Size2 get_size() const { return size; }
+	void map_set_active(TileMapViewer *p_tilemap, bool p_active);
+	bool map_is_active(TileMapViewer *p_tilemap) const;
 
-	void set_offset(const Vector2 &p_offset);
-	Vector2 get_offset() const { return offset; }
-};
+	void register_map(TileMapViewer* p_tilemap);
+	void unregister_map(TileMapViewer *p_tilemap);
 
-class WasStream : public RefCounted {
-    GDCLASS(WasStream, RefCounted);
+	Vector<Vector2> query_path(const Ref<AStarGridPathQueryParameters2D> &p_query_parameters);
 
-    Ref<MemoryReader> reader;
-	String file_path;
-    uint16_t bl_size;
-    uint16_t vframes;
-	uint16_t hframes;
-	uint16_t width;
-	uint16_t height;
-	int16_t offset_x;
-	int16_t offset_y;
-    uint16_t palette[256];
-	const uint32_t *frame_offsets;
-protected:
-    static void _bind_methods();
-
-public:
-
-    static Ref<WasStream> load_from_file(const String &p_path);
-
-	void change_palette(const Ref<WasPaletteTransformSet> &p_set);
-    void reset_palette();
-
-	Ref<WasImage> get_image() const;
-
-    uint32_t get_width() const;
-	uint32_t get_height() const;
-	uint32_t get_hframes() const;
-	uint32_t get_vframes() const;
-    Vector2 get_offset() const;
-
-	WasStream() {}
-	~WasStream();
-private:
-    uint32_t _convert_rgb565_to_rgb888(uint16_t color, uint8_t alpha) const;
-	uint16_t _convert_alpha565(uint16_t src, uint8_t alpha) const;
-    uint16_t _get_color(uint8_t index) const;
+	AStarGridServer2D();
+	~AStarGridServer2D();
 };

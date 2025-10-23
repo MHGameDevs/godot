@@ -33,7 +33,11 @@
 #include "core/string/print_string.h"
 
 Ref<WasStream> WasStream::load_from_file(const String &p_path) {
-    
+
+	if (Engine::get_singleton()->is_editor_hint()) {
+		print_line(vformat("Load was file: %s", p_path));
+	}
+
     Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::READ);
 
     if (file.is_null()) {
@@ -53,16 +57,17 @@ Ref<WasStream> WasStream::load_from_file(const String &p_path) {
 	Ref<WasStream> stream;
 	stream.instantiate();
 	stream->reader = reader;
+	stream->file_path = p_path;
 	stream->bl_size = reader->get_16();
 	stream->vframes = reader->get_16();
 	stream->hframes = reader->get_16();
 	stream->width = reader->get_16();
 	stream->height = reader->get_16();
-	stream->offset_x = reader->get_16();
-	stream->offset_y = reader->get_16();
+	stream->offset_x = reader->get_s16();
+	stream->offset_y = reader->get_s16();
 
     if (stream->bl_size > 12) {
-		reader->seek(stream->bl_size - 12);
+		reader->skip(stream->bl_size - 12);
     }
 	reader->get_buffer(stream->palette, 512);
 
@@ -70,27 +75,54 @@ Ref<WasStream> WasStream::load_from_file(const String &p_path) {
     return stream;
 }
 
-void WasStream::change_palette(Ref<PaletteTransform> p) {
-	for (uint32_t i = p->get_start(); i < p->get_finish(); i++) {
-        uint16_t color = palette[i];
-        uint16_t r = (color & 0xF800) >> 11;
-        uint16_t g = (color & 0x07E0) >> 5;
-        uint16_t b = (color & 0x001F);
-        
-        uint16_t r2 = (r * p->get_rr()) + (g * p->get_rg()) + (b * p->get_rb());
-		uint16_t g2 = (r * p->get_gr()) + (g * p->get_gg()) + (b * p->get_gb());
-		uint16_t b2 = (r * p->get_br()) + (g * p->get_bg()) + (b * p->get_bb());
+void WasStream::change_palette(const Ref<WasPaletteTransformSet> &p_set) {
+	if (p_set.is_null()) {
+		return;
+	}
 
-        r2 = r2 >> 8;
-        g2 = g2 >> 8;
-        b2 = b2 >> 8;
+	for (size_t idx = 0; idx < p_set->get_palette_transform_count(); idx++) {
+		uint8_t start = p_set->get_palette_transform_start(idx);
+		uint8_t finish = p_set->get_palette_transform_finish(idx);
 
-        if(r2 > 0x1f) r2 = 0x1F;
-        if(g2 > 0x3f) g2 = 0x3F;
-        if(b2 > 0x1f) b2 = 0x1F;
+		uint16_t rr = p_set->get_palette_transform_rr(idx);
+		uint16_t rg = p_set->get_palette_transform_rg(idx);
+		uint16_t rb = p_set->get_palette_transform_rb(idx);
 
-        palette[i] = (r2 << 11) | (g2 << 5) | b2;
-    }
+		uint16_t gr = p_set->get_palette_transform_gr(idx);
+		uint16_t gg = p_set->get_palette_transform_gg(idx);
+		uint16_t gb = p_set->get_palette_transform_gb(idx);
+
+		uint16_t br = p_set->get_palette_transform_br(idx);
+		uint16_t bg = p_set->get_palette_transform_bg(idx);
+		uint16_t bb = p_set->get_palette_transform_bb(idx);
+
+		for (uint8_t i = start; i < finish; i++) {
+			uint16_t color = palette[i];
+			uint16_t r = (color & 0xF800) >> 11;
+			uint16_t g = (color & 0x07E0) >> 5;
+			uint16_t b = (color & 0x001F);
+
+			uint16_t r2 = (r * rr) + (g * rg) + (b * rb);
+			uint16_t g2 = (r * gr) + (g * gg) + (b * gb);
+			uint16_t b2 = (r * br) + (g * bg) + (b * bb);
+
+			r2 = r2 >> 8;
+			g2 = g2 >> 8;
+			b2 = b2 >> 8;
+
+			if (r2 > 0x1f) {
+				r2 = 0x1F;
+			}
+			if (g2 > 0x3f) {
+				g2 = 0x3F;
+			}
+			if (b2 > 0x1f) {
+				b2 = 0x1F;
+			}
+
+			palette[i] = (r2 << 11) | (g2 << 5) | b2;
+		}
+	}
 }
 
 void WasStream::reset_palette() {
@@ -101,10 +133,72 @@ void WasStream::reset_palette() {
 	reader->get_buffer(palette, 512);
 }
 
-Ref<Image> WasStream::get_image() const {
-    // image size
-	uint32_t image_width = width * hframes;
-	uint32_t image_height = height * vframes;
+struct Frame {
+	int32_t offset_x = 0;
+	int32_t offset_y = 0;
+	int32_t width = 0;
+	int32_t height = 0;
+
+	uint32_t position;
+	const uint32_t *line_offset;
+};
+
+Ref<WasImage> WasStream::get_image() const {
+	Vector2 offset;
+
+	int32_t end_x = 0;
+	int32_t end_y = 0;
+
+	Vector<Frame> frames;
+
+	for (uint16_t i = 0; i < vframes; i++) {
+		for (uint16_t j = 0; j < hframes; j++) {
+			Frame frame;
+
+			uint32_t index = i * hframes + j;
+
+			frame.position = frame_offsets[index] + bl_size + 4;
+
+			if (frame.position == bl_size + 4) {
+				frame.width = 1;
+				frame.height = 1;
+				continue;
+			}
+
+			reader->seek(frame.position);
+
+			frame.offset_x = reader->get_s32();
+			frame.offset_y = reader->get_s32();
+			frame.width = reader->get_s32();
+			frame.height = reader->get_s32();
+			frame.line_offset = reader->raw<uint32_t>();
+
+			frames.append(frame);
+
+			if (index == 0 || offset.x < frame.offset_x) {
+				offset.x = frame.offset_x;
+			}
+
+			if (index == 0 || offset.y < frame.offset_y) {
+				offset.y = frame.offset_y;
+			}
+
+			if (index == 0 || end_x < frame.width - frame.offset_x) {
+				end_x = frame.width - frame.offset_x;
+			}
+
+			if (index == 0 || end_y < frame.height - frame.offset_y) {
+				end_y = frame.height - frame.offset_y;
+			}
+		}
+	}
+
+	uint32_t frame_width = end_x + offset.x;
+	uint32_t frame_height = end_y + offset.y;
+
+	// image size
+	uint32_t image_width = frame_width * hframes;
+	uint32_t image_height = frame_height * vframes;
 
 	// tga image
 	uint32_t size = image_width * image_height * sizeof(uint32_t) + 18; // 4 bytes per pixel(RGBA) + header
@@ -121,45 +215,27 @@ Ref<Image> WasStream::get_image() const {
 	// tga pixels
 	uint32_t *pixels = reinterpret_cast<uint32_t *>(tga.ptrw() + 18);
 
-	// parse
 	for (uint16_t i = 0; i < vframes; i++) {
 		for (uint16_t j = 0; j < hframes; j++) {
-			
-			uint32_t position = frame_offsets[i * hframes + j] + bl_size + 4;
 
-			uint32_t frame_offset_x;
-			uint32_t frame_offset_y;
-			uint32_t frame_width;
-			uint32_t frame_height;
+			const Frame &frame = frames[i * hframes + j];
 
-			if (position == bl_size + 4) {
-				frame_width = 1;
-				frame_height = 1;
+			if (frame.position == bl_size + 4) {
 				continue;
 			}
 
-			reader->seek(position);
-			frame_offset_x = reader->get_32();
-			frame_offset_y = reader->get_32();
-			frame_width = reader->get_32();
-			frame_height = reader->get_32();
+			for (int32_t y = 0; y < frame.height; y++) {
+				reader->seek(frame.position + frame.line_offset[y]);
 
-			// line offsets
-			size_t line_offset_size = frame_height * sizeof(uint32_t);
-			const uint32_t *line_offset = reader->raw<uint32_t>();
-			reader->skip(line_offset_size);
-			
-			for (uint32_t y = 0; y < frame_height; y++) {
-				reader->seek(position + line_offset[y]);
-
-				uint32_t frame_offset = (offset_x - frame_offset_x) + (offset_y - frame_offset_y) * image_width;
-				uint32_t offset = width * j + image_width * (height * i + y) + frame_offset;
+				uint32_t image_x = j * frame_width + offset.x - frame.offset_x;
+				uint32_t image_y = i * frame_height + offset.y - frame.offset_y + y;
+				// Compute the linear index in the image buffer
+				uint32_t offset = image_x + image_y * image_width;
 
 				uint32_t x = 0;
 				uint32_t skip = 0;
-
+				
 				while (x < frame_width && reader->readable()) {
-
 					uint8_t c = reader->get_8();
 					uint32_t repeat;
 					uint16_t color;
@@ -215,7 +291,9 @@ Ref<Image> WasStream::get_image() const {
 							break;
 					}
 				}
+				
 			}
+
 		}
 	}
 
@@ -223,7 +301,13 @@ Ref<Image> WasStream::get_image() const {
 	Ref<Image> image;
 	image.instantiate();
 	image->load_tga_from_buffer(tga);
-	return image;
+
+	Ref<WasImage> was_image;
+	was_image.instantiate();
+	was_image->set_size(Size2(frame_width, frame_height));
+	was_image->set_offset(-offset);
+	was_image->set_image(image);
+	return was_image;
 }
 
 uint32_t WasStream::get_width() const {
@@ -290,28 +374,21 @@ void WasStream::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_offset"), &WasStream::get_offset);
 }
 
-String PaletteTransform::to_string() const {
-    return vformat("PaletteTransform(start=%d, finish=%d, rr=%d, rg=%d, rb=%d, gr=%d, gg=%d, gb=%d, br=%d, bg=%d, bb=%d)",
-                   start, finish, rr, rg, rb, gr, gg, gb, br, bg, bb);
+void WasImage::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_image"), &WasImage::get_image);
+	ClassDB::bind_method(D_METHOD("get_size"), &WasImage::get_size);
+	ClassDB::bind_method(D_METHOD("get_offset"), &WasImage::get_offset);
 }
 
-void PaletteTransform::_bind_methods() {
-    ClassDB::bind_method(D_METHOD("set_start", "start"), &PaletteTransform::set_start);
-    ClassDB::bind_method(D_METHOD("get_start"), &PaletteTransform::get_start);
-    ClassDB::bind_method(D_METHOD("set_finish", "finish"), &PaletteTransform::set_finish);
-    ClassDB::bind_method(D_METHOD("get_finish"), &PaletteTransform::get_finish);
-    ClassDB::bind_method(D_METHOD("set_rr", "rr"), &PaletteTransform::set_rr);
-    ClassDB::bind_method(D_METHOD("get_rr"), &PaletteTransform::get_rr);
-    ClassDB::bind_method(D_METHOD("set_rg", "rg"), &PaletteTransform::set_rg);
-    ClassDB::bind_method(D_METHOD("get_rg"), &PaletteTransform::get_rg);
-    ClassDB::bind_method(D_METHOD("set_rb", "rb"), &PaletteTransform::set_rb);
-    ClassDB::bind_method(D_METHOD("get_rb"), &PaletteTransform::get_rb);
-    ClassDB::bind_method(D_METHOD("set_gr", "gr"), &PaletteTransform::set_gr);
-    ClassDB::bind_method(D_METHOD("get_gr"), &PaletteTransform::get_gr);
-    ClassDB::bind_method(D_METHOD("set_gg", "gg"), &PaletteTransform::set_gg);
-    ClassDB::bind_method(D_METHOD("get_gg"), &PaletteTransform::get_gg);
-    ClassDB::bind_method(D_METHOD("set_br", "br"), &PaletteTransform::set_br);
-    ClassDB::bind_method(D_METHOD("get_br"), &PaletteTransform::get_br);
-    ClassDB::bind_method(D_METHOD("set_bg", "bg"), &PaletteTransform::set_bg);
-    ClassDB::bind_method(D_METHOD("get_bg"), &PaletteTransform::get_bg);
+void WasImage::set_image(const Ref<Image>& p_image) {
+	image = p_image;
 }
+
+void WasImage::set_size(const Size2 &p_size) {
+	size = p_size;
+}
+
+void WasImage::set_offset(const Vector2& p_offset) {
+	offset = p_offset;
+}
+

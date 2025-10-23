@@ -62,6 +62,12 @@ public:
 
 	uint32_t get_32();
 
+	int8_t get_s8();
+
+	int16_t get_s16();
+
+	int32_t get_s32();
+
 	size_t get_buffer(uint8_t *dst, size_t size);
 
 	PackedByteArray get_buffer(size_t size);
