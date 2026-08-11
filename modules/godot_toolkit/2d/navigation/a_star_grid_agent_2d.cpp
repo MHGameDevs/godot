@@ -32,6 +32,7 @@
 
 #include "core/math/geometry_2d.h"
 #include "core/object/class_db.h"
+#include "scene/main/scene_tree.h"
 #include "servers/rendering/rendering_server.h"
 
 void AStarGridAgent2D::_bind_methods() {
@@ -516,7 +517,7 @@ void AStarGridAgent2D::_update_debug_path() {
 	}
 
 	RenderingServer::get_singleton()->canvas_item_set_parent(debug_path_instance, agent_parent->get_canvas());
-	RenderingServer::get_singleton()->canvas_item_set_z_index(debug_path_instance, RS::CANVAS_ITEM_Z_MAX - 1);
+	RenderingServer::get_singleton()->canvas_item_set_z_index(debug_path_instance, RSE::CANVAS_ITEM_Z_MAX - 1);
 	RenderingServer::get_singleton()->canvas_item_set_visible(debug_path_instance, agent_parent->is_visible_in_tree());
 
 	if (navigation_path.size() <= 1) {

@@ -39,7 +39,7 @@
 #include "scene/resources/image_texture.h"
 #include "scene/resources/atlas_texture.h"
 #include "scene/resources/shader.h"
-#include "scene/resources/shader_material.h"
+#include "scene/resources/material.h"
 #include "servers/rendering/rendering_server.h"
 
 Ref<Shader> TileMapViewer::s_mask_shader = nullptr;
@@ -592,7 +592,7 @@ void TileMapViewer::_draw_map() {
 #ifdef DEBUG_ENABLED
 	if (debug_map_node == nullptr) {
 		debug_map_node = memnew(TileMapViewerDebugNode2D);
-		debug_map_node->set_z_index(RS::CANVAS_ITEM_Z_MAX - 1);
+		debug_map_node->set_z_index(RSE::CANVAS_ITEM_Z_MAX - 1);
 		add_child(debug_map_node);
 	}
 	debug_map_node->set_visible(debug_enabled);

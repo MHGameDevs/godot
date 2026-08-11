@@ -33,6 +33,7 @@
 
 #include "scene/2d/node_2d.h"
 #include "core/math/a_star_grid_2d.h"
+#include "scene/resources/shader.h"
 
 class TileMapViewer : public Node2D {
     GDCLASS(TileMapViewer, Node2D);
