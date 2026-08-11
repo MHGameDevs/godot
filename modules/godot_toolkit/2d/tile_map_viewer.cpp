@@ -35,6 +35,7 @@
 #include "core/object/class_db.h"
 #include "scene/2d/sprite_2d.h"
 #include "scene/2d/camera_2d.h"
+#include "scene/main/scene_tree.h"
 #include "scene/main/viewport.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/atlas_texture.h"
