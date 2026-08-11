@@ -29,6 +29,9 @@
 
 #include "was_sprite_2d.h"
 
+#include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
+
 void WasSprite2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_was_texture", "texture"), &WasSprite2D::set_was_texture);
 	ClassDB::bind_method(D_METHOD("get_was_texture"), &WasSprite2D::get_was_texture);

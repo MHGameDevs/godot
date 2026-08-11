@@ -29,6 +29,8 @@
 
 #include "a_star_grid_path_query_parameters_2d.h"
 
+#include "core/object/class_db.h"
+
 void AStarGridPathQueryParameters2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_start_position", "start_position"), &AStarGridPathQueryParameters2D::set_start_position);
     ClassDB::bind_method(D_METHOD("get_start_position"), &AStarGridPathQueryParameters2D::get_start_position);
@@ -82,4 +84,3 @@ void AStarGridPathQueryParameters2D::set_estimate_heuristic(AStarGrid2D::Heurist
 	ERR_FAIL_INDEX((int)p_heuristic, (int)AStarGrid2D::HEURISTIC_MAX);
     estimate_heuristic = p_heuristic;
 }
-

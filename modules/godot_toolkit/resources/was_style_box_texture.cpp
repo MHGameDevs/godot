@@ -29,6 +29,8 @@
 
 #include "was_style_box_texture.h"
 
+#include "core/object/class_db.h"
+
 void WasStyleBoxTexture::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_was_texture", "was_texture"), &WasStyleBoxTexture::set_was_texture);
     ClassDB::bind_method(D_METHOD("get_was_texture"), &WasStyleBoxTexture::get_was_texture);
@@ -50,4 +52,3 @@ void WasStyleBoxTexture::set_was_texture(const Ref<WasTexture>& p_was_texture) {
 
 	set_texture(was_texture);
 }
-

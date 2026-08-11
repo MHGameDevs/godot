@@ -29,6 +29,8 @@
 
 #include "a_star_grid_server_2d.h"
 
+#include "core/object/class_db.h"
+
 AStarGridServer2D *AStarGridServer2D::singleton = nullptr;
 
 void AStarGridServer2D::_bind_methods() {

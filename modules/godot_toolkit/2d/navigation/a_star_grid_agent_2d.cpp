@@ -31,6 +31,8 @@
 #include "a_star_grid_server_2d.h"
 
 #include "core/math/geometry_2d.h"
+#include "core/object/class_db.h"
+#include "servers/rendering/rendering_server.h"
 
 void AStarGridAgent2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_path_desired_distance", "desired_distance"), &AStarGridAgent2D::set_path_desired_distance);

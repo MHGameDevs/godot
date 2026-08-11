@@ -29,6 +29,10 @@
 
 #include "was_stream.h"
 
+#include "core/config/engine.h"
+#include "core/io/file_access.h"
+#include "core/io/image.h"
+#include "core/object/class_db.h"
 #include "core/os/os.h"
 #include "core/string/print_string.h"
 

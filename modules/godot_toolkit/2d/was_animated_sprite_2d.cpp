@@ -29,6 +29,8 @@
 
 #include "was_animated_sprite_2d.h"
 
+#include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
 #include "scene/resources/atlas_texture.h"
 
 static const PackedStringArray ANIMATION_NAMES = {

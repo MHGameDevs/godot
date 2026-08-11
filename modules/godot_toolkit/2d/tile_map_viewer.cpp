@@ -30,11 +30,17 @@
 #include "tile_map_viewer.h"
 #include "navigation/a_star_grid_server_2d.h"
 
+#include "core/config/engine.h"
+#include "core/io/image.h"
+#include "core/object/class_db.h"
 #include "scene/2d/sprite_2d.h"
 #include "scene/2d/camera_2d.h"
 #include "scene/main/viewport.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/atlas_texture.h"
+#include "scene/resources/shader.h"
+#include "scene/resources/shader_material.h"
+#include "servers/rendering/rendering_server.h"
 
 Ref<Shader> TileMapViewer::s_mask_shader = nullptr;
 

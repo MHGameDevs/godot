@@ -29,6 +29,10 @@
 
 #include "map_stream.h"
 
+#include "core/io/file_access.h"
+#include "core/io/image.h"
+#include "core/object/class_db.h"
+
 #define VER_MAPX	0x4D415058	// 大话2旧地图
 #define VER_MAP1	0x4D312E30	// 大话2新地图 梦幻地图
 #define VER_MAP2_5	0x4D322E35	// 大话3内测版

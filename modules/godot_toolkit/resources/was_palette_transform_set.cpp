@@ -29,6 +29,8 @@
 
 #include "was_palette_transform_set.h"
 
+#include "core/object/class_db.h"
+
 void WasPaletteTransformSet::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_palette_transform_start", "index", "start"), &WasPaletteTransformSet::set_palette_transform_start);
 	ClassDB::bind_method(D_METHOD("get_palette_transform_start", "index"), &WasPaletteTransformSet::get_palette_transform_start);

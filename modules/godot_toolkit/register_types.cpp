@@ -29,6 +29,10 @@
 
 #include "register_types.h"
 
+#include "core/config/engine.h"
+#include "core/io/resource_loader.h"
+#include "core/object/class_db.h"
+
 #include "2d/tile_map_viewer.h"
 #include "2d/was_sprite_2d.h"
 #include "2d/was_animated_sprite_2d.h"

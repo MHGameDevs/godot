@@ -30,6 +30,10 @@
 #include "was_texture.h"
 
 #include "../io/was_stream.h"
+#include "core/io/resource_loader.h"
+#include "core/io/resource_importer.h"
+#include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
 #include "scene/resources/bit_map.h"
 
 void WasTexture::reload_from_file() {

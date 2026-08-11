@@ -30,6 +30,8 @@
 #include "resource_importer_was.h"
 #include "was_texture.h"
 
+#include "core/io/resource_saver.h"
+
 String ResourceImporterWas::get_importer_name() const {
 	return "godot.wastexture";
 }

@@ -29,6 +29,8 @@
 
 #include "was_texture_button.h"
 
+#include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
 #include "scene/resources/atlas_texture.h"
 
 void WasTextureButton::_bind_methods() {
