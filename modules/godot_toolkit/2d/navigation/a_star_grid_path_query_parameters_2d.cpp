@@ -52,8 +52,8 @@ void AStarGridPathQueryParameters2D::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "target_position"), "set_target_position", "get_target_position");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "allow_partial_path"), "set_allow_partial_path", "get_allow_partial_path");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "diagonal_mode", PROPERTY_HINT_ENUM, "DIAGONAL_MODE_ALWAYS,DIAGONAL_MODE_NEVER,DIAGONAL_MODE_AT_LEAST_ONE_WALKABLE,DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES,DIAGONAL_MODE_MAX"), "set_diagonal_mode", "get_diagonal_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "compute_heuristic", PROPERTY_HINT_ENUM, "HEURISTIC_EUCLIDEAN,HEURISTIC_MANHATTAN,HEURISTIC_OCTILE,HEURISTIC_CHEBYSHEV,HEURISTIC_MAX"), "set_diagonal_mode", "get_diagonal_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "estimate_heuristic", PROPERTY_HINT_ENUM, "HEURISTIC_EUCLIDEAN,HEURISTIC_MANHATTAN,HEURISTIC_OCTILE,HEURISTIC_CHEBYSHEV,HEURISTIC_MAX"), "set_diagonal_mode", "get_diagonal_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "compute_heuristic", PROPERTY_HINT_ENUM, "HEURISTIC_EUCLIDEAN,HEURISTIC_MANHATTAN,HEURISTIC_OCTILE,HEURISTIC_CHEBYSHEV,HEURISTIC_MAX"), "set_compute_heuristic", "get_compute_heuristic");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "estimate_heuristic", PROPERTY_HINT_ENUM, "HEURISTIC_EUCLIDEAN,HEURISTIC_MANHATTAN,HEURISTIC_OCTILE,HEURISTIC_CHEBYSHEV,HEURISTIC_MAX"), "set_estimate_heuristic", "get_estimate_heuristic");
 }
 
 void AStarGridPathQueryParameters2D::set_start_position(const Vector2 p_start_position) {

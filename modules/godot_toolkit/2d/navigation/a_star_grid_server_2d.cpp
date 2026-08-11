@@ -59,10 +59,6 @@ void AStarGridServer2D::map_set_active(TileMapViewer *p_tilemap, bool p_active) 
 	int map_index = active_maps.find(p_tilemap);
 	ERR_FAIL_COND_MSG(map_index < 0, "TileMapViewer not registered.");
 
-	if (map_index == active_maps.size() - 1) {
-		return;
-	}
-
 	if (p_active) {
 		if (map_index != active_maps.size() - 1) {
 			active_maps.remove_at(map_index);
@@ -124,4 +120,3 @@ Vector<Vector2> AStarGridServer2D::query_path(const Ref<AStarGridPathQueryParame
 
 	return astar->get_point_path(p_query_parameters->get_start_position() / cell_size, p_query_parameters->get_target_position() / cell_size, p_query_parameters->get_allow_partial_path());
 }
-

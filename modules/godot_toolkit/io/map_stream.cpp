@@ -283,16 +283,18 @@ Ref<Image> MapStream::get_mask_image(uint32_t mask_index) const {
 	MaskInfo info = _mask_info[mask_index];
 
 	// read mask data
-	uint8_t *mask_data_src = (uint8_t *)malloc(info.size);
+	Vector<uint8_t> mask_data_src;
+	mask_data_src.resize(info.size);
 	reader->seek(info.pos + 20);
-	reader->get_buffer(mask_data_src, info.size);
+	reader->get_buffer(mask_data_src.ptrw(), info.size);
 
 	// 4k align
 	uint32_t align_width = (info.width / 4 + (info.width % 4 != 0)) * 4;
 
 	// decompress
-	uint8_t *mask_data_dec = (uint8_t *)malloc(align_width * info.height / 4);
-	_decompress_mask(mask_data_src, mask_data_dec);
+	Vector<uint8_t> mask_data_dec;
+	mask_data_dec.resize(align_width * info.height / 4);
+	_decompress_mask(mask_data_src.ptrw(), mask_data_dec.ptrw());
 
 	// tga image
 	uint32_t size = info.width * info.height * sizeof(uint32_t) + 18;

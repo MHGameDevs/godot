@@ -79,7 +79,7 @@ void WasPaletteTransformSet::_bind_methods() {
 	base_property_helper.register_property(PropertyInfo(Variant::FLOAT, "br", PROPERTY_HINT_RANGE, "0,512,1"), defaults.br, &WasPaletteTransformSet::set_palette_transform_br, &WasPaletteTransformSet::get_palette_transform_br);
 	base_property_helper.register_property(PropertyInfo(Variant::FLOAT, "bg", PROPERTY_HINT_RANGE, "0,512,1"), defaults.bg, &WasPaletteTransformSet::set_palette_transform_bg, &WasPaletteTransformSet::get_palette_transform_bg);
 	base_property_helper.register_property(PropertyInfo(Variant::FLOAT, "bb", PROPERTY_HINT_RANGE, "0,512,1"), defaults.bb, &WasPaletteTransformSet::set_palette_transform_bb, &WasPaletteTransformSet::get_palette_transform_bb);
-	PropertyListHelper::register_base_helper(&base_property_helper);
+	PropertyListHelper::register_base_helper(get_class_static(), &base_property_helper);
 }
 
 void WasPaletteTransformSet::set_palette_transform_start(int p_index, uint8_t p_start) {

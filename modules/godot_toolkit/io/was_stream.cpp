@@ -126,10 +126,11 @@ void WasStream::change_palette(const Ref<WasPaletteTransformSet> &p_set) {
 }
 
 void WasStream::reset_palette() {
-    reader->seek(16);
-    if (bl_size > 12) {
-		reader->seek(bl_size - 12);
-    }
+	if (bl_size > 12) {
+		reader->seek(bl_size + 4);
+	} else {
+		reader->seek(16);
+	}
 	reader->get_buffer(palette, 512);
 }
 
@@ -391,4 +392,3 @@ void WasImage::set_size(const Size2 &p_size) {
 void WasImage::set_offset(const Vector2& p_offset) {
 	offset = p_offset;
 }
-
